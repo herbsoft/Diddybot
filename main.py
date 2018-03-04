@@ -108,6 +108,16 @@ def count_led(number):
         led_left.value = 0
         led_main.value = 1
         led_right.value = 0
+
+    elif (number == 3):
+        led_left.value = 1
+        led_main.value = 1
+        led_right.value = 0
+
+    elif (number == 4):
+        led_left.value = 0
+        led_main.value = 0
+        led_right.value = 1
         
 # ==============================================================================
 
@@ -270,7 +280,7 @@ def readFrontDistance():
 ################################################################################
 # Automated straight line driving using distance sensors
 
-def setPowerLevels():
+def straightDriving():
     rightDistance = readRightDistance()
     leftDistance = readLeftDistance()
     
@@ -295,15 +305,12 @@ def setPowerLevels():
 
 # =============================================================================
 
-def straightLineDriving():
+def straightLineSpeed():
     switch_on_leds()
 
     wii.rpt_mode = cwiid.RPT_BTN
     button_delay = 0.1
-
     is_moving = False
-    step = 2
-    counter = step
 
     try:    
         while True:
@@ -324,14 +331,9 @@ def straightLineDriving():
                 is_moving = False
                 stop_motors()
             
-            if (is_moving and counter == 0):
-                setPowerLevels()
+            if (is_moving):
+                straightDriving()
             
-            if (counter > 0):
-                counter -= 1
-            else:
-                counter = step
-
             sleep(button_delay)
             
     # ==========================================================================
@@ -343,12 +345,138 @@ def straightLineDriving():
         switch_off_leds()
 
 ################################################################################
+# Minimal Maze using distance sensors
+
+def rotateLeft(angle):
+    stop_motors()
+    set_speeds(100,-100)
+    time = angle / 120
+    sleep(time)         
+
+# =============================================================================
+
+def rotateRight(angle):
+    stop_motors()
+    set_speeds(-100,100)
+    time = angle / 170
+    sleep(time)         
+    
+# =============================================================================
+
+def minimalMazeDriving():
+    frontDistance = readFrontDistance()
+    print ("Front Distance {:0.3f}".format(frontDistance))
+
+    if (frontDistance < 25.0):
+        rightDistance = readRightDistance()
+        leftDistance = readLeftDistance()
+
+        print (" - Right Distance {:0.3f}".format(rightDistance))
+        print (" - Left Distance  {:0.3f}".format(leftDistance))
+
+        if (rightDistance < leftDistance):
+            print ("  - Left Turn")
+            rotateLeft(90)
+            
+        else:
+            print ("  - Right Turn")
+            rotateRight(90)
+    
+    set_speeds(100,100)
+    return True
+
+# =============================================================================
+
+def MinimalMaze():
+    switch_on_leds()
+            
+    wii.rpt_mode = cwiid.RPT_BTN
+    button_delay = 0.1
+    is_moving = False
+
+    try:    
+        while True:
+
+            buttons = wii.state['buttons']
+
+            # If Home button pressed return to menu.
+            if (buttons & cwiid.BTN_HOME):
+                raise MainMenuException()
+          
+            if (buttons & cwiid.BTN_1):
+                print ("1 pressed - Auto Drive")
+                is_moving = True
+                set_speeds(100,100)
+
+            if (buttons & cwiid.BTN_2):
+                print ("2 pressed - Stop")
+                is_moving = False
+                stop_motors()
+            
+            if (is_moving):
+                is_moving = minimalMazeDriving()
+
+            sleep(button_delay)
+
+# ==========================================================================
+
+    except MainMenuException:
+        # This exception will be raised when the home button is pressed, at which
+        # point we should stop the motors.
+        stop_motors()
+        switch_off_leds()
+
+# =============================================================================
+
+def RotateTest():
+    switch_on_leds()
+            
+    wii.rpt_mode = cwiid.RPT_BTN
+    button_delay = 0.1
+    is_moving = False
+
+    try:    
+        while True:
+
+            buttons = wii.state['buttons']
+
+            # If Home button pressed return to menu.
+            if (buttons & cwiid.BTN_HOME):
+                raise MainMenuException()
+          
+            if (buttons & cwiid.BTN_1):
+                print ("1 pressed - Rotate Left")
+                rotateLeft(90)
+                rotateLeft(90)
+                rotateLeft(90)
+                rotateLeft(90)
+                stop_motors()
+
+            if (buttons & cwiid.BTN_2):
+                print ("2 pressed - Rotate Right")
+                rotateRight(90)
+                rotateRight(90)
+                rotateRight(90)
+                rotateRight(90)
+                stop_motors()
+            
+            sleep(button_delay)
+
+# ==========================================================================
+
+    except MainMenuException:
+        # This exception will be raised when the home button is pressed, at which
+        # point we should stop the motors.
+        stop_motors()
+        switch_off_leds()
+
+################################################################################
 # Main menu loop
 #
 # 1.  Manual driving
-# 2.  Straight-Line Speed Test
+# 2.  Straight-Line Speed
 # 3.  Minimal Maze
-# 4.  Somewher Over the Rainbow
+# 4.  Somewhere Over the Rainbow
 #
 
 try:
@@ -379,7 +507,7 @@ try:
     listening = True
     
     mode = 1
-    max_mode = 2
+    max_mode = 4
     
     switch_off_leds()
 
@@ -410,11 +538,21 @@ try:
                 print ("Manual Driving Mode - Started")        
                 manualDriving()
                 print ("Manual Driving Mode - Exited")        
-                
+
             elif (mode == 2):
                 print ("Straight Line Mode - Started")        
-                straightLineDriving()
+                straightLineSpeed()
                 print ("Straight Line Mode - Exited")
+                
+            elif (mode == 3):
+                print ("Minimal Maze - Started")        
+                MinimalMaze()
+                print ("Minimal Maze - Exited")
+                
+            elif (mode == 4):
+                print ("Rotate Test - Started")        
+                RotateTest()
+                print ("Rotate Test - Exited")
                 
             sleep(button_delay)
 
