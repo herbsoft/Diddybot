@@ -279,6 +279,21 @@ def readFrontDistance():
     return distance
 
 ################################################################################
+
+def readSideDistances();
+    rightDistance = readRightDistance()
+    leftDistance = readLeftDistance()
+    return leftDistance, rightDistance
+
+################################################################################
+
+def readDistances();
+    rightDistance = readRightDistance()
+    leftDistance = readLeftDistance()
+    frontDistance = readFrontDistance()
+    return leftDistance, rightDistance, frontDistance
+
+################################################################################
 # Automated straight line driving using distance sensors
 
 def straightDriving():
@@ -429,6 +444,12 @@ def MinimalMaze():
 
 # =============================================================================
 
+def DriveStraight():
+    r1, l1 = readSideDistances()
+    print ("Distance 1 - l:{:0.3f} r:{:0.3f}".format(l1, r1))
+    
+# =============================================================================
+
 def TestMode():
     switch_on_leds()
             
@@ -451,7 +472,7 @@ def TestMode():
                 for t in range (0, 20):
                     r1 = readRightDistance()
                     l1 = readLeftDistance()
-                    print ("Distance 1 - l:{:0.3f} r:{:0.3f}".format(11, r1))
+                    print ("Distance 1 - l:{:0.3f} r:{:0.3f}".format(l1, r1))
                     set_speeds(100,100)
                     sleep(0.5)
                     r2 = readRightDistance()
