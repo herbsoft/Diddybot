@@ -14,6 +14,7 @@ from __future__ import division     # Gives floating point division
 
 import cwiid
 import RPi.GPIO as GPIO
+import math
 
 from gpiozero import CamJamKitRobot
 from gpiozero import PWMLED
@@ -348,17 +349,17 @@ def straightLineSpeed():
 # Minimal Maze using distance sensors
 
 def rotateLeft(angle):
-    stop_motors()
+    #stop_motors()
     set_speeds(100,-100)
-    time = angle / 120
+    time = angle / 140
     sleep(time)         
 
 # =============================================================================
 
 def rotateRight(angle):
-    stop_motors()
+    #stop_motors()
     set_speeds(-100,100)
-    time = angle / 170
+    time = angle / 140
     sleep(time)         
     
 # =============================================================================
@@ -428,7 +429,7 @@ def MinimalMaze():
 
 # =============================================================================
 
-def RotateTest():
+def TestMode():
     switch_on_leds()
             
     wii.rpt_mode = cwiid.RPT_BTN
@@ -445,20 +446,26 @@ def RotateTest():
                 raise MainMenuException()
           
             if (buttons & cwiid.BTN_1):
-                print ("1 pressed - Rotate Left")
-                rotateLeft(90)
-                rotateLeft(90)
-                rotateLeft(90)
-                rotateLeft(90)
-                stop_motors()
+                print ("1 pressed - Straight")
 
-            if (buttons & cwiid.BTN_2):
-                print ("2 pressed - Rotate Right")
-                rotateRight(90)
-                rotateRight(90)
-                rotateRight(90)
-                rotateRight(90)
-                stop_motors()
+                for t in range (0, 20):
+                    r1 = readRightDistance()
+                    l1 = readLeftDistance()
+                    print ("Distance 1 - l:{:0.3f} r:{:0.3f}".format(11, r1))
+                    set_speeds(100,100)
+                    sleep(0.5)
+                    r2 = readRightDistance()
+                    l2 = readLeftDistance()
+                    print ("Distance 2 - l:{:0.3f} r:{:0.3f}".format(l2, r2))
+                    print ("Difference - {:0.3f}".format(r1-r2))
+                    angle = math.degrees(math.asin((r1-r2)/20))
+                    print ("Angle {:0.3f}".format(angle))
+                    if (angle > 0):
+                        rotateLeft(angle)
+                    else:
+                        rotateRight(-angle)
+                    stop_motors()
+                
             
             sleep(button_delay)
 
@@ -550,9 +557,9 @@ try:
                 print ("Minimal Maze - Exited")
                 
             elif (mode == 4):
-                print ("Rotate Test - Started")        
-                RotateTest()
-                print ("Rotate Test - Exited")
+                print ("Test - Started")        
+                TestMode()
+                print ("Test - Exited")
                 
             sleep(button_delay)
 
@@ -574,4 +581,4 @@ except RobotStopException:
     switch_off_leds()
 
         
-        
+         
