@@ -52,8 +52,14 @@ robot = CamJamKitRobot()
 motor_left = robot.left_motor
 motor_right = robot.right_motor
 
-# Motors are reversed. If you find your robot going backwards, set this to 1
-motor_multiplier = 1
+################################################################################
+# Define my own exception to make it clear when I want to quit
+
+class MainMenuException(Exception):
+    pass
+
+class RobotStopException(Exception):
+    pass
 
 ################################################################################
 # Initialise the LED objects
@@ -74,9 +80,9 @@ def set_speeds(power_left, power_right):
     """
     
     # Take the 0-100 inputs down to 0-1 and reverse them if necessary
-    power_left = (motor_multiplier * power_left) / 100
-    power_right = (motor_multiplier * power_right) / 100
-
+    power_left = power_left / 100
+    power_right = power_right / 100
+    
     # If power is less than 0, we want to turn the motor backwards, otherwise
     # turn it forwards
     
@@ -95,6 +101,22 @@ def set_speeds(power_left, power_right):
 def stop_motors():
     motor_left.stop()
     motor_right.stop()
+
+# =============================================================================
+
+def rotateLeft(angle):
+    #stop_motors()
+    set_speeds(100,-100)
+    time = angle / 140
+    sleep(time)         
+
+# =============================================================================
+
+def rotateRight(angle):
+    #stop_motors()
+    set_speeds(-100,100)
+    time = angle / 140
+    sleep(time)         
 
 ################################################################################
 # Methods to control the lights
@@ -144,63 +166,6 @@ def switch_off_leds():
     led_main.value = 0
     led_left.value = 0
     led_right.value = 0
-
-################################################################################
-# Define my own exception to make it clear when I want to quit
-
-class MainMenuException(Exception):
-    pass
-
-class RobotStopException(Exception):
-    pass
-
-################################################################################
-# Button inputs for manual driving mode
-
-def manualDriving():
-    switch_on_leds()
-
-    wii.rpt_mode = cwiid.RPT_BTN
-    button_delay = 0.1
-
-    try:    
-        while True:
-
-            buttons = wii.state['buttons']
-
-            # If Home button pressed return to menu.
-            if (buttons & cwiid.BTN_HOME):
-                raise MainMenuException()
-          
-            if (buttons & cwiid.BTN_UP):
-                print ("Up pressed")        
-                set_speeds(100,100)
-                sleep(button_delay)
-
-            if (buttons & cwiid.BTN_DOWN):
-                print ("Down pressed")
-                set_speeds(-100,-100)
-                sleep(button_delay)
-
-            if (buttons & cwiid.BTN_LEFT):
-                print ("Left pressed")
-                set_speeds(100,-100)
-                sleep(button_delay)         
-
-            if(buttons & cwiid.BTN_RIGHT):
-                print ("Right pressed")
-                set_speeds(-100,100)
-                sleep(button_delay)          
-
-            stop_motors()
-
-    # ==========================================================================
-
-    except MainMenuException:
-        # This exception will be raised when the home button is pressed, at which
-        # point we should stop the motors.
-        stop_motors()
-        switch_off_leds()
 
 ################################################################################
 # Distance sensors
@@ -278,46 +243,106 @@ def readFrontDistance():
     # print "%.4f" % distance
     return distance
 
-################################################################################
+# =============================================================================
 
-def readSideDistances();
+def readSideDistances():
     rightDistance = readRightDistance()
     leftDistance = readLeftDistance()
     return leftDistance, rightDistance
 
-################################################################################
+# =============================================================================
 
-def readDistances();
+def readDistances():
     rightDistance = readRightDistance()
     leftDistance = readLeftDistance()
     frontDistance = readFrontDistance()
     return leftDistance, rightDistance, frontDistance
 
 ################################################################################
+# Button inputs for manual driving mode
+
+def manualDriving():
+    switch_on_leds()
+
+    wii.rpt_mode = cwiid.RPT_BTN
+    button_delay = 0.1
+
+    try:    
+        while True:
+
+            buttons = wii.state['buttons']
+
+            # If Home button pressed return to menu.
+            if (buttons & cwiid.BTN_HOME):
+                raise MainMenuException()
+          
+            if (buttons & cwiid.BTN_UP):
+                print ("Up pressed")        
+                set_speeds(100,100)
+                sleep(button_delay)
+
+            if (buttons & cwiid.BTN_DOWN):
+                print ("Down pressed")
+                set_speeds(-100,-100)
+                sleep(button_delay)
+
+            if (buttons & cwiid.BTN_LEFT):
+                print ("Left pressed")
+                set_speeds(100,-100)
+                sleep(button_delay)         
+
+            if(buttons & cwiid.BTN_RIGHT):
+                print ("Right pressed")
+                set_speeds(-100,100)
+                sleep(button_delay)          
+
+            stop_motors()
+
+    # ==========================================================================
+
+    except MainMenuException:
+        # This exception will be raised when the home button is pressed, at which
+        # point we should stop the motors.
+        stop_motors()
+        switch_off_leds()
+
+################################################################################
 # Automated straight line driving using distance sensors
 
-def straightDriving():
-    rightDistance = readRightDistance()
-    leftDistance = readLeftDistance()
+def driveStraight(speed, distance, outDistance):
+    calibrate = 40.0    # How far DiddyBot moves in one second
+
+    l1, r1, f1 = readDistances()
+    print ("Distance 1 - l:{:0.3f} r:{:0.3f} f:{:0.3f}".format(l1, r1, f1))
+
+    moveDistance = min(f1 - 25.0, distance)
     
-    power = [100,100]
-        
-    if (rightDistance > leftDistance):
-        power[0] = 70
-        power[1] = 100
-        print ("Turn Right {:0.3f} {:0.3f} - {:0.1f} {:0.1f}".format(rightDistance, leftDistance, power[0], power[1]))
-        
-    elif (rightDistance < leftDistance):
-        power[0] = 100
-        power[1] = 70
-        print ("Turn Left  {:0.3f} {:0.3f} - {:0.1f} {:0.1f}".format(rightDistance, leftDistance, power[0], power[1]))
-        
+    if (moveDistance < 0):
+        stop_motors()
+        return False
+    
+    print ("Moving {:0.3f}".format(moveDistance))
+    set_speeds(speed,speed)
+    sleep(moveDistance / calibrate)
+
+    l2, r2, f2 = readDistances()
+    print ("Distance 2 - l:{:0.3f} r:{:0.3f} f:{:0.3f}".format(l2, r2, f2))
+
+    if (l2 > outDistance or r2 > outDistance):
+        stop_motors()
+        return False
+
+    # Multiply by two to bring strainght and then back towards center?
+    angle = 2 * math.degrees(math.asin((r1-r2)/moveDistance))
+    print ("Angle {:0.3f}".format(angle))
+
+    if (angle > 0.0):
+        rotateLeft(angle)
     else:
-        power[0] = 100
-        power[1] = 100
-        print ("Straight   {:0.3f} {:0.3f} - {:0.1f} {:0.1f}".format(rightDistance , leftDistance, power[0], power[1]))
-        
-    set_speeds(power[0], power[1])
+        rotateRight(-angle)
+
+    set_speeds(speed,speed)
+    return True
 
 # =============================================================================
 
@@ -327,6 +352,13 @@ def straightLineSpeed():
     wii.rpt_mode = cwiid.RPT_BTN
     button_delay = 0.1
     is_moving = False
+
+    l1, r1, f1 = readDistances()
+    print ("Starting Distances 1 - l:{:0.3f} r:{:0.3f} f:{:0.3f}".format(l1, r1, f1))
+    l1, r1, f1 = readDistances()
+    print ("Starting Distances 2 - l:{:0.3f} r:{:0.3f} f:{:0.3f}".format(l1, r1, f1))
+    l1, r1, f1 = readDistances()
+    print ("Starting Distances 3 - l:{:0.3f} r:{:0.3f} f:{:0.3f}".format(l1, r1, f1))
 
     try:    
         while True:
@@ -340,15 +372,15 @@ def straightLineSpeed():
             if (buttons & cwiid.BTN_1):
                 print ("1 pressed - Auto Drive")
                 is_moving = True
-                set_speeds(100,100)
 
             if (buttons & cwiid.BTN_2):
                 print ("2 pressed - Stop")
                 is_moving = False
-                stop_motors()
             
             if (is_moving):
-                straightDriving()
+                is_moving = driveStraight(100, 20, 40)
+            else:
+                stop_motors()
             
             sleep(button_delay)
             
@@ -362,23 +394,7 @@ def straightLineSpeed():
 
 ################################################################################
 # Minimal Maze using distance sensors
-
-def rotateLeft(angle):
-    #stop_motors()
-    set_speeds(100,-100)
-    time = angle / 140
-    sleep(time)         
-
-# =============================================================================
-
-def rotateRight(angle):
-    #stop_motors()
-    set_speeds(-100,100)
-    time = angle / 140
-    sleep(time)         
     
-# =============================================================================
-
 def minimalMazeDriving():
     frontDistance = readFrontDistance()
     print ("Front Distance {:0.3f}".format(frontDistance))
@@ -444,18 +460,12 @@ def MinimalMaze():
 
 # =============================================================================
 
-def DriveStraight():
-    r1, l1 = readSideDistances()
-    print ("Distance 1 - l:{:0.3f} r:{:0.3f}".format(l1, r1))
-    
-# =============================================================================
-
 def TestMode():
     switch_on_leds()
             
     wii.rpt_mode = cwiid.RPT_BTN
     button_delay = 0.1
-    is_moving = False
+    isMoving = False
 
     try:    
         while True:
@@ -466,28 +476,11 @@ def TestMode():
             if (buttons & cwiid.BTN_HOME):
                 raise MainMenuException()
           
-            if (buttons & cwiid.BTN_1):
-                print ("1 pressed - Straight")
-
-                for t in range (0, 20):
-                    r1 = readRightDistance()
-                    l1 = readLeftDistance()
-                    print ("Distance 1 - l:{:0.3f} r:{:0.3f}".format(l1, r1))
-                    set_speeds(100,100)
-                    sleep(0.5)
-                    r2 = readRightDistance()
-                    l2 = readLeftDistance()
-                    print ("Distance 2 - l:{:0.3f} r:{:0.3f}".format(l2, r2))
-                    print ("Difference - {:0.3f}".format(r1-r2))
-                    angle = math.degrees(math.asin((r1-r2)/20))
-                    print ("Angle {:0.3f}".format(angle))
-                    if (angle > 0):
-                        rotateLeft(angle)
-                    else:
-                        rotateRight(-angle)
+            if (isMoving or buttons & cwiid.BTN_1):
+                isMoving = driveStraight(100, 20, 40)
+                if (not isMoving):
                     stop_motors()
                 
-            
             sleep(button_delay)
 
 # ==========================================================================
