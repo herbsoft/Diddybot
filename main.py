@@ -486,7 +486,7 @@ def TestMode():
             if (buttons & cwiid.BTN_1):
                 dummy = readFrontDistance()
                 
-                for x in range (0, 3):
+                for x in range (0, 2):
                     d1 = readFrontDistance()
                     set_speeds(100,100)
                     sleep(1.0)
@@ -498,7 +498,8 @@ def TestMode():
                 dummy = readFrontDistance()
                 
                 set_speeds(100,100)
-                for x in range (0, 3):
+                sleep(0.5)
+                for x in range (0, 2):
                     d1 = readFrontDistance()
                     sleep(1.0)
                     d2 = readFrontDistance()
