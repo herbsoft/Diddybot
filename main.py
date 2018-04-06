@@ -315,12 +315,12 @@ def driveStraight(speed, distance, outDistance):
     l1, r1, f1 = readDistances()
     print ("Distance 1 - l:{:0.3f} r:{:0.3f} f:{:0.3f}".format(l1, r1, f1))
 
-    moveDistance = min(f1 - 25.0, distance)
+    moveDistance = min(f1 - 20.0, distance)
     
     # If too close to a wall in front then stop
     if (moveDistance < 0):
         stop_motors()
-        return False
+        return 1
     
     print ("Moving {:0.3f}".format(moveDistance))
     set_speeds(speed,speed)
@@ -332,14 +332,14 @@ def driveStraight(speed, distance, outDistance):
     # If moved out of walls then stop
     if (l2 > outDistance and r2 > outDistance):
         stop_motors()
-        return False
+        return 2
 
     angle = 0
     
     # Multiply by two to bring strainght and then back towards center?
-    if (l2 < outDistance):
+    if (l1 < outDistance and l2 < outDistance):
         angle = 2 * math.degrees(math.asin((l2-l1)/moveDistance))
-    else:
+    elif (r1 < outDistance and r2 < outDistance):
         angle = 2 * math.degrees(math.asin((r1-r2)/moveDistance))
 
     print ("Angle {:0.3f}".format(angle))
@@ -350,7 +350,7 @@ def driveStraight(speed, distance, outDistance):
         rotateRight(-angle)
 
     set_speeds(speed,speed)
-    return True
+    return 0
 
 # =============================================================================
 
@@ -361,12 +361,9 @@ def straightLineSpeed():
     button_delay = 0.1
     is_moving = False
 
+    # Dummy read to warm sensors :)
     l1, r1, f1 = readDistances()
-    print ("Starting Distances 1 - l:{:0.3f} r:{:0.3f} f:{:0.3f}".format(l1, r1, f1))
-    l1, r1, f1 = readDistances()
-    print ("Starting Distances 2 - l:{:0.3f} r:{:0.3f} f:{:0.3f}".format(l1, r1, f1))
-    l1, r1, f1 = readDistances()
-    print ("Starting Distances 3 - l:{:0.3f} r:{:0.3f} f:{:0.3f}".format(l1, r1, f1))
+    print ("Starting Distances - l:{:0.3f} r:{:0.3f} f:{:0.3f}".format(l1, r1, f1))
 
     try:    
         while True:
@@ -386,7 +383,7 @@ def straightLineSpeed():
                 is_moving = False
             
             if (is_moving):
-                is_moving = driveStraight(100, 20, 40)
+                is_moving = (driveStraight(100, 20, 40) == 0)
             else:
                 stop_motors()
             
@@ -404,35 +401,38 @@ def straightLineSpeed():
 # Minimal Maze using distance sensors
     
 def minimalMazeDriving():
-    frontDistance = readFrontDistance()
-    print ("Front Distance {:0.3f}".format(frontDistance))
-
-    if (frontDistance < 25.0):
-        rightDistance = readRightDistance()
-        leftDistance = readLeftDistance()
-
-        print (" - Right Distance {:0.3f}".format(rightDistance))
-        print (" - Left Distance  {:0.3f}".format(leftDistance))
-
-        if (rightDistance < leftDistance):
-            print ("  - Left Turn")
-            rotateLeft(90)
-            
-        else:
-            print ("  - Right Turn")
-            rotateRight(90)
+    result = driveStraight(100, 10, 40)
     
-    set_speeds(100,100)
-    return True
+    # 0 - drove straight, 1 - stopped due to wall, 2 - out of maze
+    # Motors still going on 0, but stopped if 1 or 2
+    
+    if (result == 0):
+        return True
+    
+    if (result == 1):
+        l, r = readSideDistances()
+        if (l > r):
+            print ("Rotate Left")
+            rotateLeft(90)
+        else:
+            rotateRight(90)
+        
+        return True
+    
+    return False
 
 # =============================================================================
 
-def MinimalMaze():
+def minimalMaze():
     switch_on_leds()
-            
+
     wii.rpt_mode = cwiid.RPT_BTN
     button_delay = 0.1
     is_moving = False
+
+    # Dummy read to warm sensors :)
+    l1, r1, f1 = readDistances()
+    print ("Starting Distances - l:{:0.3f} r:{:0.3f} f:{:0.3f}".format(l1, r1, f1))
 
     try:    
         while True:
@@ -446,19 +446,19 @@ def MinimalMaze():
             if (buttons & cwiid.BTN_1):
                 print ("1 pressed - Auto Drive")
                 is_moving = True
-                set_speeds(100,100)
 
             if (buttons & cwiid.BTN_2):
                 print ("2 pressed - Stop")
                 is_moving = False
-                stop_motors()
             
             if (is_moving):
                 is_moving = minimalMazeDriving()
-
+            else:
+                stop_motors()
+            
             sleep(button_delay)
-
-# ==========================================================================
+            
+    # ==========================================================================
 
     except MainMenuException:
         # This exception will be raised when the home button is pressed, at which
@@ -468,7 +468,7 @@ def MinimalMaze():
 
 # =============================================================================
 
-def TestMode():
+def testMode():
     switch_on_leds()
             
     wii.rpt_mode = cwiid.RPT_BTN
@@ -519,7 +519,8 @@ def TestMode():
 ################################################################################
 # Main menu loop
 #
-# 1.  Manual driving# 2.  Straight-Line Speed
+# 1.  Manual driving
+# 2.  Straight-Line Speed
 # 3.  Minimal Maze
 # 4.  Somewhere Over the Rainbow
 #
@@ -591,12 +592,12 @@ try:
                 
             elif (mode == 3):
                 print ("Minimal Maze - Started")        
-                MinimalMaze()
+                minimalMaze()
                 print ("Minimal Maze - Exited")
                 
             elif (mode == 4):
                 print ("Test - Started")        
-                TestMode()
+                testMode()
                 print ("Test - Exited")
                 
             sleep(button_delay)
