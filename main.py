@@ -317,6 +317,7 @@ def driveStraight(speed, distance, outDistance):
 
     moveDistance = min(f1 - 25.0, distance)
     
+    # If too close to a wall in front then stop
     if (moveDistance < 0):
         stop_motors()
         return False
@@ -328,12 +329,19 @@ def driveStraight(speed, distance, outDistance):
     l2, r2, f2 = readDistances()
     print ("Distance 2 - l:{:0.3f} r:{:0.3f} f:{:0.3f}".format(l2, r2, f2))
 
-    if (l2 > outDistance or r2 > outDistance):
+    # If moved out of walls then stop
+    if (l2 > outDistance and r2 > outDistance):
         stop_motors()
         return False
 
+    angle = 0
+    
     # Multiply by two to bring strainght and then back towards center?
-    angle = 2 * math.degrees(math.asin((r1-r2)/moveDistance))
+    if (l2 < outDistance):
+        angle = 2 * math.degrees(math.asin((l2-l1)/moveDistance))
+    else:
+        angle = 2 * math.degrees(math.asin((r1-r2)/moveDistance))
+
     print ("Angle {:0.3f}".format(angle))
 
     if (angle > 0.0):
@@ -465,7 +473,6 @@ def TestMode():
             
     wii.rpt_mode = cwiid.RPT_BTN
     button_delay = 0.1
-    isMoving = False
 
     try:    
         while True:
@@ -476,10 +483,27 @@ def TestMode():
             if (buttons & cwiid.BTN_HOME):
                 raise MainMenuException()
           
-            if (isMoving or buttons & cwiid.BTN_1):
-                isMoving = driveStraight(100, 20, 40)
-                if (not isMoving):
+            if (buttons & cwiid.BTN_1):
+                dummy = readFrontDistance()
+                
+                for x in range (0, 3):
+                    d1 = readFrontDistance()
+                    set_speeds(100,100)
+                    sleep(1.0)
                     stop_motors()
+                    d2 = readFrontDistance()
+                    print ("Discreet Move {:0.3f}".format(d1-d2))
+                
+            if (buttons & cwiid.BTN_2):
+                dummy = readFrontDistance()
+                
+                set_speeds(100,100)
+                for x in range (0, 3):
+                    d1 = readFrontDistance()
+                    sleep(1.0)
+                    d2 = readFrontDistance()
+                    print ("Continuous Move {:0.3f}".format(d1-d2))
+                stop_motors()
                 
             sleep(button_delay)
 
@@ -494,8 +518,7 @@ def TestMode():
 ################################################################################
 # Main menu loop
 #
-# 1.  Manual driving
-# 2.  Straight-Line Speed
+# 1.  Manual driving# 2.  Straight-Line Speed
 # 3.  Minimal Maze
 # 4.  Somewhere Over the Rainbow
 #
