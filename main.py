@@ -415,6 +415,7 @@ def minimalMazeDriving():
             print ("Rotate Left")
             rotateLeft(90)
         else:
+            print ("Rotate Right")
             rotateRight(90)
         
         return True
