@@ -107,7 +107,7 @@ def stop_motors():
 def rotateLeft(angle):
     #stop_motors()
     set_speeds(100,-100)
-    time = angle / 140
+    time = angle / 300
     sleep(time)         
 
 # =============================================================================
@@ -115,7 +115,7 @@ def rotateLeft(angle):
 def rotateRight(angle):
     #stop_motors()
     set_speeds(-100,100)
-    time = angle / 140
+    time = angle / 300
     sleep(time)         
 
 ################################################################################
@@ -310,7 +310,7 @@ def manualDriving():
 # Automated straight line driving using distance sensors
 
 def driveStraight(speed, distance, outDistance):
-    calibrate = 40.0    # How far DiddyBot moves in one second
+    calibrate = 80.0    # How far DiddyBot moves in one second
 
     l1, r1, f1 = readDistances()
     print ("Distance 1 - l:{:0.3f} r:{:0.3f} f:{:0.3f}".format(l1, r1, f1))
@@ -320,9 +320,10 @@ def driveStraight(speed, distance, outDistance):
     # If too close to a wall in front then stop
     if (moveDistance < 0):
         stop_motors()
+        print ("Too close to object")
         return 1
     
-    print ("Moving {:0.3f}".format(moveDistance))
+    # print ("Moving {:0.3f}".format(moveDistance))
     set_speeds(speed,speed)
     sleep(moveDistance / calibrate)
 
@@ -332,6 +333,7 @@ def driveStraight(speed, distance, outDistance):
     # If moved out of walls then stop
     if (l2 > outDistance and r2 > outDistance):
         stop_motors()
+        print ("No walls found")
         return 2
 
     angle = 0
@@ -342,11 +344,11 @@ def driveStraight(speed, distance, outDistance):
     elif (r1 < outDistance and r2 < outDistance):
         angle = 2 * math.degrees(math.asin((r1-r2)/moveDistance))
 
-    print ("Angle {:0.3f}".format(angle))
-
     if (angle > 0.0):
+        print ("Rotate left {:0.3f}".format(angle))
         rotateLeft(angle)
     else:
+        print ("Rotate right {:0.3f}".format(-angle))
         rotateRight(-angle)
 
     set_speeds(speed,speed)
@@ -383,7 +385,7 @@ def straightLineSpeed():
                 is_moving = False
             
             if (is_moving):
-                is_moving = (driveStraight(100, 20, 40) == 0)
+                is_moving = (driveStraight(100, 40, 40) == 0)
             else:
                 stop_motors()
             
@@ -505,6 +507,18 @@ def testMode():
                     sleep(1.0)
                     d2 = readFrontDistance()
                     print ("Continuous Move {:0.3f}".format(d1-d2))
+                stop_motors()
+                
+            if (buttons & cwiid.BTN_LEFT):
+                set_speeds(100, 100)
+                sleep(2.0)
+                rotateLeft(90)
+                stop_motors()
+
+            if (buttons & cwiid.BTN_RIGHT):
+                set_speeds(100, 100)
+                sleep(2.0)
+                rotateRight(90)
                 stop_motors()
                 
             sleep(button_delay)
