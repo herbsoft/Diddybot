@@ -80,8 +80,8 @@ def set_speeds(power_left, power_right):
     """
     
     # Take the 0-100 inputs down to 0-1 and reverse them if necessary
-    power_left = power_left / 100
-    power_right = power_right / 100
+    power_left = (power_left / 100)
+    power_right = (power_right / 100)
     
     # If power is less than 0, we want to turn the motor backwards, otherwise
     # turn it forwards
@@ -99,24 +99,21 @@ def set_speeds(power_left, power_right):
 # ==============================================================================
 
 def stop_motors():
-    motor_left.stop()
-    motor_right.stop()
+    robot.stop()
 
 # =============================================================================
 
-def rotateLeft(angle):
-    #stop_motors()
-    set_speeds(100,-100)
-    time = angle / 300
+def rotateLeft(speed, angle):
+    robot.left(speed/100)
+    time = (angle / 220) * (100 / speed)
     sleep(time)         
 
 # =============================================================================
 
-def rotateRight(angle):
-    #stop_motors()
-    set_speeds(-100,100)
-    time = angle / 300
-    sleep(time)         
+def rotateRight(speed, angle):
+    robot.right(speed/100)
+    time = (angle / 220) * (100 / speed)
+    sleep(time)
 
 ################################################################################
 # Methods to control the lights
@@ -184,7 +181,7 @@ def readRightDistance():
         stop_time = time()
         
     if stop_time - start_time >= 0.04:
-        print ("Too close")
+        print ("Too close - Right")
         stop_time = start_time
     
     distance = (stop_time - start_time) * 34326
@@ -209,7 +206,7 @@ def readLeftDistance():
         stop_time = time()
         
     if stop_time - start_time >= 0.04:
-        print ("Too close")
+        print ("Too close - Left")
         stop_time = start_time
     
     distance = (stop_time - start_time) * 34326
@@ -234,7 +231,7 @@ def readFrontDistance():
         stop_time = time()
         
     if stop_time - start_time >= 0.04:
-        print ("Too close")
+        print ("Too close - Front")
         stop_time = start_time
     
     distance = (stop_time - start_time) * 34326
@@ -278,22 +275,26 @@ def manualDriving():
           
             if (buttons & cwiid.BTN_UP):
                 print ("Up pressed")        
-                set_speeds(100,100)
+                # set_speeds(100,100)
+                robot.forward()
                 sleep(button_delay)
 
             if (buttons & cwiid.BTN_DOWN):
                 print ("Down pressed")
-                set_speeds(-100,-100)
+                # set_speeds(-100,-100)
+                robot.backward()
                 sleep(button_delay)
 
             if (buttons & cwiid.BTN_LEFT):
                 print ("Left pressed")
-                set_speeds(100,-100)
+                # set_speeds(100,-100)
+                robot.left()
                 sleep(button_delay)         
 
             if(buttons & cwiid.BTN_RIGHT):
                 print ("Right pressed")
-                set_speeds(-100,100)
+                # set_speeds(-100,100)
+                robot.right()
                 sleep(button_delay)          
 
             stop_motors()
@@ -310,12 +311,12 @@ def manualDriving():
 # Automated straight line driving using distance sensors
 
 def driveStraight(speed, distance, outDistance):
-    calibrate = 80.0    # How far DiddyBot moves in one second
+    calibrate = 60.0 * (speed / 100)   # How far DiddyBot moves in one second
 
     l1, r1, f1 = readDistances()
     print ("Distance 1 - l:{:0.3f} r:{:0.3f} f:{:0.3f}".format(l1, r1, f1))
 
-    moveDistance = min(f1 - 20.0, distance)
+    moveDistance = min(f1 - 25.0, distance)
     
     # If too close to a wall in front then stop
     if (moveDistance < 0):
@@ -337,19 +338,26 @@ def driveStraight(speed, distance, outDistance):
         return 2
 
     angle = 0
-    
-    # Multiply by two to bring strainght and then back towards center?
-    if (l1 < outDistance and l2 < outDistance):
-        angle = 2 * math.degrees(math.asin((l2-l1)/moveDistance))
-    elif (r1 < outDistance and r2 < outDistance):
-        angle = 2 * math.degrees(math.asin((r1-r2)/moveDistance))
+
+    try:    
+        # Multiply by two to bring strainght and then back towards center?
+        if (l1 < outDistance and l2 < outDistance):
+            print ("Covered (Left) - {:0.3f} over {:0.3f}".format(l2-l1, moveDistance))
+            angle = 2 * math.degrees(math.asin((l2-l1)/moveDistance))
+        elif (r1 < outDistance and r2 < outDistance):
+            print ("Covered (Right) - {:0.3f} over {:0.3f}".format(r1-l2, moveDistance))
+            angle = 2 * math.degrees(math.asin((r1-r2)/moveDistance))
+
+    except ValueError:
+        # Can I decide a better angle in this case?
+        angle = 0
 
     if (angle > 0.0):
         print ("Rotate left {:0.3f}".format(angle))
-        rotateLeft(angle)
+        rotateLeft(speed, angle)
     else:
         print ("Rotate right {:0.3f}".format(-angle))
-        rotateRight(-angle)
+        rotateRight(speed, -angle)
 
     set_speeds(speed,speed)
     return 0
@@ -403,7 +411,8 @@ def straightLineSpeed():
 # Minimal Maze using distance sensors
     
 def minimalMazeDriving():
-    result = driveStraight(100, 10, 40)
+    speed = 50
+    result = driveStraight(speed, 20, 60)
     
     # 0 - drove straight, 1 - stopped due to wall, 2 - out of maze
     # Motors still going on 0, but stopped if 1 or 2
@@ -412,15 +421,19 @@ def minimalMazeDriving():
         return True
     
     if (result == 1):
-        l, r = readSideDistances()
-        if (l > r):
+        left, right = readSideDistances()
+        if (left > right):
             print ("Rotate Left")
-            rotateLeft(90)
+            rotateLeft(speed, 90)
         else:
             print ("Rotate Right")
-            rotateRight(90)
+            rotateRight(speed, 90)
         
         return True
+
+    if (result == 2):
+        # There's a small chance this is a false answer
+        rotateRight(speed, 10)
     
     return False
 
@@ -477,6 +490,9 @@ def testMode():
     wii.rpt_mode = cwiid.RPT_BTN
     button_delay = 0.1
 
+    leftSpeed = 100
+    rightSpeed = 100
+
     try:    
         while True:
 
@@ -491,7 +507,7 @@ def testMode():
                 
                 for x in range (0, 2):
                     d1 = readFrontDistance()
-                    set_speeds(100,100)
+                    set_speeds(leftSpeed,rightSpeed)
                     sleep(1.0)
                     stop_motors()
                     d2 = readFrontDistance()
@@ -500,7 +516,7 @@ def testMode():
             if (buttons & cwiid.BTN_2):
                 dummy = readFrontDistance()
                 
-                set_speeds(100,100)
+                set_speeds(leftSpeed,rightSpeed)
                 sleep(0.5)
                 for x in range (0, 2):
                     d1 = readFrontDistance()
@@ -509,16 +525,24 @@ def testMode():
                     print ("Continuous Move {:0.3f}".format(d1-d2))
                 stop_motors()
                 
+            if (buttons & cwiid.BTN_MINUS):
+                rightSpeed -= 2
+                print ("Right Speed {:d}".format(rightSpeed))
+
+            if (buttons & cwiid.BTN_PLUS):
+                rightSpeed += 2
+                print ("Right Speed {:d}".format(rightSpeed))
+
             if (buttons & cwiid.BTN_LEFT):
-                set_speeds(100, 100)
+                set_speeds(leftSpeed, rightSpeed)
                 sleep(2.0)
-                rotateLeft(90)
+                rotateLeft(rightSpeed,90)
                 stop_motors()
 
             if (buttons & cwiid.BTN_RIGHT):
-                set_speeds(100, 100)
+                set_speeds(leftSpeed, rightSpeed)
                 sleep(2.0)
-                rotateRight(90)
+                rotateRight(rightSpeed,90)
                 stop_motors()
                 
             sleep(button_delay)
